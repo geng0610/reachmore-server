@@ -6,8 +6,11 @@ const router = express.Router();
 // Create a new audience list
 router.post('/', async (req, res) => {
   try {
+    const now = new Date();
+    const name = `New Audience List - ${now.toISOString()}`;
+
     const newList = new AudienceList({
-      name: req.body.name,
+      name,
       userId: req.auth.userId,
     });
     await newList.save();

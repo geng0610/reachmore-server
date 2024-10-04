@@ -1,4 +1,3 @@
-// src/index.ts
 import './datadog'; // Ensure this is at the top of your file
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -8,14 +7,15 @@ import connectDB from './config/db';
 import { ClerkExpressRequireAuth, StrictAuthProp } from '@clerk/clerk-sdk-node';
 import audienceListRoutes from './routes/api/audienceListRoutes';
 import audienceQueryRoutes from './routes/api/audienceQueryRoutes';
+import queryToContactRoutes from './routes/api/queryToContactRoutes';
+import audienceFeedbackRoutes from './routes/api/audienceFeedbackRoutes';
 
 
 var StatsD = require('hot-shots');
 var dogstatsd = new StatsD();
 
 // Increment a counter.
-dogstatsd.increment('page.views')
-
+dogstatsd.increment('page.views');
 
 dotenv.config(); // Load environment variables
 
@@ -38,21 +38,17 @@ declare global {
 // Apply Clerk auth middleware globally for all subsequent routes
 app.use(ClerkExpressRequireAuth());
 
-
 // API Routes
 app.use('/api/audience-lists', audienceListRoutes);
 app.use('/api/audience-queries', audienceQueryRoutes);
-
-
+app.use('/api/query-to-contacts', queryToContactRoutes);
+app.use('/api/audience-feedback', audienceFeedbackRoutes); // Add this line
 
 // Error handling middleware with explicit types
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
-
-
-
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
