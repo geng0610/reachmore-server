@@ -20,34 +20,39 @@ class AudienceQueryService {
         const previousQuery = await AudienceQuery.findById(audienceQueryId);
         const prompt = this.createPromptWithFeedback(audienceList, previousQuery, feedbackData);
         const query = await this.getQueryFromChatGPT(prompt);
-      
+
         const audienceQuery = new AudienceQuery({
-          audienceListId: audienceList._id,
-          query,
+            audienceListId: audienceList._id,
+            query,
         });
-      
+
         await audienceQuery.save();
         return audienceQuery;
-      }
-      
-      private createPromptWithFeedback(audienceList: IAudienceList, previousQuery: IAudienceQuery | null, feedbackData: IAudienceFeedback | null): string {
+    }
+
+    private createPromptWithFeedback(audienceList: IAudienceList, previousQuery: IAudienceQuery | null, feedbackData: IAudienceFeedback | null): string {
         // Modify the prompt to include the previous query summary and feedback data
         const overallFeedback = feedbackData?.overallFeedback || 'None provided';
         const contactFeedback = feedbackData?.contactFeedback || [];
         const previousSummary = previousQuery?.summaryData || {};
-      
+        const previousQueryString = previousQuery?.query || 'None provided';
+
         return `
           You are an assistant that helps generate SQL queries for retrieving relevant contacts from a database.
       
           The user has provided the following free-form customer data:
       
           Sample best case customers entered as freeFormContacts: ${audienceList.freeFormContacts || 'None provided'}
+          If sample data is too little, infer more data, and don't bee too restrictive.
           Additional Context: ${audienceList.additionalContext || 'None provided'}
       
           The user has also provided feedback on the previous query results:
       
           Overall Feedback: ${overallFeedback}
           Contact Feedback: ${JSON.stringify(contactFeedback)}
+
+          The previous query was:
+          ${previousQueryString}
       
           The previous query summary is as follows:
       
@@ -138,6 +143,36 @@ class AudienceQueryService {
         - Location: ... AND (location_city in ('Millburn', 'Livingston'))...
         - departments: ... AND has(departments, 'master_operations')...
         - sub_departments: ... AND has(sub_departments, 'master_operations')...
+        Sample wieght inside the ORDER BY clause:
+        - departments: ... Order by (CASE WHEN has(departments, 'master_operations') THEN 1 END),
+        - sub_departments: ... Order by (CASE WHEN has(sub_departments, 'operations') THEN 1 END),
+
+        Sample SQL query:
+            SELECT 
+                id, 
+                location_country, 
+                location_state, 
+                location_city, 
+                job_title, 
+                seniority, 
+                departments, 
+                sub_departments, 
+                company_domain, 
+                company_name, 
+                company_industry
+            FROM 
+                person_repository_import
+            WHERE 
+                location_country = 'United States'
+                AND location_state = 'New Jersey'
+                AND location_city IN ('Millburn', 'Livingston', 'Summit')
+                AND (company_industry ILIKE '%real estate%' OR company_industry ILIKE '%legal%')
+                AND (job_title ILIKE '%partner%' OR seniority = 'partner')
+            ORDER BY 
+                (CASE WHEN company_industry ILIKE '%real estate%' THEN 1 ELSE 0 END) DESC,
+                (CASE WHEN seniority = 'partner' THEN 1 ELSE 0 END) DESC,
+                (CASE WHEN has(sub_departments, 'operations') THEN 2 END)
+            LIMIT 5000
 
     
     
@@ -149,6 +184,8 @@ class AudienceQueryService {
         - Company names (similar match if the domain is not available),
         - Company locations (if available),
         - Job titles, seniority and industries (if available).
+
+        
     
     
     
@@ -184,6 +221,7 @@ class AudienceQueryService {
       The user has provided the following free-form customer data:
 
       Sample best case customers entered as freeFormContacts: ${audienceList.freeFormContacts || 'None provided'}
+        If sample data is too little, infer more data, and don't bee too restrictive.
       Additional Context: ${audienceList.additionalContext || 'None provided'}
 
       Using this data, generate a SQL query that searches for similar contacts in a ClickHouse database using the following schema:
@@ -270,6 +308,41 @@ class AudienceQueryService {
     - Location: ... AND (location_city in ('Millburn', 'Livingston'))...
     - departments: ... AND has(departments, 'master_operations')...
     - sub_departments: ... AND has(sub_departments, 'master_operations')...
+    Sample wieght inside the ORDER BY clause:
+    - Industry: ...  (company_industry ILIKE '%real estate%' OR company_industry ILIKE '%legal%')...
+    - Location: ...  (location_city in ('Millburn', 'Livingston'))...
+    - departments: ... has(departments, 'master_operations')...
+    - sub_departments: ...  has(sub_departments, 'master_operations')...
+    Sample wieght inside the ORDER BY clause:
+    - departments: ... Order by (CASE WHEN has(departments, 'master_operations') THEN 1 END),
+    - sub_departments: ... Order by (CASE WHEN has(sub_departments, 'operations') THEN 2 END),
+
+    Sample SQL query:
+    SELECT 
+        id, 
+        location_country, 
+        location_state, 
+        location_city, 
+        job_title, 
+        seniority, 
+        departments, 
+        sub_departments, 
+        company_domain, 
+        company_name, 
+        company_industry
+    FROM 
+        person_repository_import
+    WHERE 
+        location_country = 'United States'
+        AND location_state = 'New Jersey'
+        AND location_city IN ('Millburn', 'Livingston', 'Summit')
+        AND (company_industry ILIKE '%real estate%' OR company_industry ILIKE '%legal%')
+        AND (job_title ILIKE '%partner%' OR seniority = 'partner')
+    ORDER BY 
+        (CASE WHEN company_industry ILIKE '%real estate%' THEN 1 ELSE 0 END) DESC,
+        (CASE WHEN seniority = 'partner' THEN 1 ELSE 0 END) DESC,
+        (CASE WHEN has(sub_departments, 'operations') THEN 2 END)
+    LIMIT 5000
 
 
     Domain Knowledge:
