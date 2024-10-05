@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IAudienceList extends Document {
   name: string;
   userId: string;
+  organizationId: string;
   freeFormContacts: string;
   additionalContext: string;
   deletedAt: Date | null;
@@ -13,6 +14,7 @@ export interface IAudienceList extends Document {
 const AudienceListSchema: Schema = new Schema({
   name: { type: String, required: true },
   userId: { type: String, required: true },
+  organizationId: { type: String, required: true },
   freeFormContacts: { type: String, default: '' },
   additionalContext: { type: String, default: '' },
   deletedAt: { type: Date, default: null },

@@ -12,6 +12,7 @@ router.post('/', async (req, res) => {
     const newList = new AudienceList({
       name,
       userId: req.auth.userId,
+      organizationId: req.auth.orgId,
     });
     await newList.save();
     res.status(201).json(newList);
@@ -23,7 +24,7 @@ router.post('/', async (req, res) => {
 // Get all audience lists for the current user
 router.get('/', async (req, res) => {
   try {
-    const lists = await AudienceList.find({ userId: req.auth.userId, deletedAt: null });
+    const lists = await AudienceList.find({ organizationId: req.auth.orgId, deletedAt: null });
     res.json(lists);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch audience lists' });
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 // Get a specific audience list
 router.get('/:id', async (req, res) => {
   try {
-    const list = await AudienceList.findOne({ _id: req.params.id, userId: req.auth.userId, deletedAt: null });
+    const list = await AudienceList.findOne({ _id: req.params.id, organizationId: req.auth.orgId, deletedAt: null });
     if (!list) {
       return res.status(404).json({ error: 'Audience list not found' });
     }
@@ -47,7 +48,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const list = await AudienceList.findOneAndUpdate(
-      { _id: req.params.id, userId: req.auth.userId, deletedAt: null },
+      { _id: req.params.id, organizationId: req.auth.orgId, deletedAt: null },
       {
         name: req.body.name,
         freeFormContacts: req.body.freeFormContacts,
@@ -69,7 +70,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const list = await AudienceList.findOneAndUpdate(
-      { _id: req.params.id, userId: req.auth.userId, deletedAt: null },
+      { _id: req.params.id, organizationId: req.auth.orgId, deletedAt: null },
       { deletedAt: Date.now(), updatedAt: Date.now() },
       { new: true }
     );
